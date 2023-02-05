@@ -6,15 +6,15 @@ const User = require("../models/User");
 router.post("/", async (req, res) => {
     const newPost = new Post(req.body);
     try {
-        const savePost = await newPost.save();
-        return res.status(200).json(savePost);
+        const savedPost = await newPost.save();
+        return res.status(200).json(savedPost);
     } catch (err) {
         return res.status(500).json(err);
     }
 })
 
 // update post
-router.post("/id", async (req, res) => {
+router.put("/:id", async (req, res) => {
     try {
         const post = await Post.findById(req.params.id);
         if (post.userId === req.body.userId) {
@@ -47,7 +47,7 @@ router.delete("/:id", async (req, res) => {
     }
 })
 
-// get post
+// get post!!
 router.get("/:id", async (req, res) => {
     try {
         const post = await Post.findById(req.params.id);
@@ -58,10 +58,9 @@ router.get("/:id", async (req, res) => {
 })
 
 // like!!
-router.put("./:id/like", async (req, res) => {
+router.put("/:id/like", async (req, res) => {
     try {
         const post = await Post.findById(req.params.id);
-        const currentUser = await Post.findById(req.body.userId);
 
         if (!post.likes.includes(req.body.userId)) {
             await post.updateOne({
@@ -71,6 +70,7 @@ router.put("./:id/like", async (req, res) => {
             })
             return res.status(200).json("You like this post")
         } else {
+            // when you already liked this post
             await post.updateOne({
                 $pull: {
                     likes: req.body.userId,
@@ -78,20 +78,31 @@ router.put("./:id/like", async (req, res) => {
             })
             return res.status(403).json("You don't like this post")
         }
-
     } catch (err) {
         return res.status(500).json(err)
     }
 })
 
-// get timeline
-router.get("./timeline/all", async (req, res) => {
+// get timeline for profile
+router.get("/profile/:username", async (req, res) => {
     try {
-        const currentUser = await User.findById(req.body.userId);
+        const user = await User.findOne({ username: req.params.username });
+        const posts = await Post.find({ userId: user._id });
+        return res.status(200).json(posts);
+    } catch (err) {
+        return res.status(500).json(err);
+    }
+})
+
+// get timeline
+router.get("/timeline/:userId", async (req, res) => {
+    try {
+        const currentUser = await User.findById(req.params.userId);
         const userPosts = await Post.find({ userId: currentUser._id });
+        // get all posts of following
         const friendPosts = await Promise.all(
-            currentUser.followings.map((friendId)=>{
-                return Post.find({userId:friendId});
+            currentUser.followings.map((friendId) => {
+                return Post.find({ userId: friendId });
             })
         );
         return res.status(200).json(userPosts.concat(...friendPosts));
